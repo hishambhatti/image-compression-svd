@@ -1,12 +1,7 @@
 import React from 'react';
+import * as C from "../utils/utils";
 
 export default function Menu({ onSelect }) {
-  const portfolioImages = [
-    { name: 'Celeste', folder: 'celeste', path: '/images/celeste/celeste.png' },
-    { name: 'Heart', folder: 'heart', path: '/images/heart/heart.png' },
-    { name: 'Hisham', folder: 'hisham', path: '/images/hisham/hisham.jpg' },
-    { name: 'Joshua Tree', folder: 'joshua-tree', path: '/images/joshua-tree/joshua-tree.png' },
-  ];
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4'>
@@ -48,11 +43,11 @@ export default function Menu({ onSelect }) {
           Explore our Portfolio
         </h2>
         <div className='grid grid-cols-2 md:grid-cols-4 gap-6'>
-          {portfolioImages.map((img, index) => (
+          {C.portfolioImages.map((img, index) => (
             <div
               key={index}
               className='group cursor-pointer flex flex-col items-center'
-              onClick={() => onSelect(img.folder)} // Trigger the load
+              onClick={() => onSelect(img)} // Trigger the load
             >
               <div className='overflow-hidden rounded-lg shadow-sm group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2'>
                 <img
