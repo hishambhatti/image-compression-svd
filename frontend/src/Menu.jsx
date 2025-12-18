@@ -1,11 +1,11 @@
 import React from 'react';
 
-export default function Menu() {
+export default function Menu({ onSelect }) {
   const portfolioImages = [
-    { name: 'Celeste', path: '/images/celeste/celeste.png' },
-    { name: 'Heart', path: '/images/heart/heart.png' },
-    { name: 'Hisham', path: '/images/hisham/hisham.jpg' },
-    { name: 'Joshua Tree', path: '/images/joshua-tree/joshua-tree.png' },
+    { name: 'Celeste', folder: 'celeste', path: '/images/celeste/celeste.png' },
+    { name: 'Heart', folder: 'heart', path: '/images/heart/heart.png' },
+    { name: 'Hisham', folder: 'hisham', path: '/images/hisham/hisham.jpg' },
+    { name: 'Joshua Tree', folder: 'joshua-tree', path: '/images/joshua-tree/joshua-tree.png' },
   ];
 
   return (
@@ -52,7 +52,7 @@ export default function Menu() {
             <div
               key={index}
               className='group cursor-pointer flex flex-col items-center'
-              onClick={() => console.log(`Selected: ${img.name}`)}
+              onClick={() => onSelect(img.folder)} // Trigger the load
             >
               <div className='overflow-hidden rounded-lg shadow-sm group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2'>
                 <img
