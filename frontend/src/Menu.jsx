@@ -11,14 +11,35 @@ export default function Menu() {
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[Poppins,sans-serif]'>
       {/* Header Section */}
-      <header className='flex flex-col items-center text-center mt-6 mb-12'>
-        <h1 className='text-4xl md:text-5xl font-light mb-2'>
-          SVD Image Compression
-        </h1>
-        <div className='w-12 h-px bg-gray-400 my-2'></div>
-        <p className='text-gray-600 max-w-md text-lg leading-relaxed'>
-          An interactive visualization of image compression using singular value decomposition.
-        </p>
+      <header className='w-full flex flex-col items-center text-center mb-12 mt-4 px-4'>
+        <div className='flex items-center justify-center gap-2 md:gap-4 lg:gap-10 w-full'>
+
+          {/* Left Image: Circle */}
+          <img
+            src="circle.png"
+            alt="Unit Circle"
+            className="hidden md:block w-32 h-32 lg:w-42 lg:h-42 object-contain"
+          />
+
+          {/* Main Title Content */}
+          <div className="flex flex-col items-center shrink-0">
+            <h1 className='text-4xl md:text-5xl lg:text-6xl font-light mb-0'>
+              SVD Image Compression
+            </h1>
+            <div className='w-12 h-px bg-gray-400 my-4'></div>
+            <p className='text-gray-600 max-w-sm md:max-w-md text-lg leading-relaxed'>
+              An interactive visualization of image compression using singular value decomposition.
+            </p>
+          </div>
+
+          {/* Right Image: Ellipse */}
+          <img
+            src="ellipse.png"
+            alt="Transformed Ellipse"
+            className="hidden md:block w-32 h-32 lg:w-42 lg:h-42 object-contain"
+          />
+
+        </div>
       </header>
 
       {/* Section 1: Portfolio */}
@@ -69,9 +90,6 @@ export default function Menu() {
             onChange={(e) => console.log(e.target.files[0])}
           />
         </label>
-        <p className='mt-4 text-xs text-gray-400 italic'>
-          Supports .PNG, .JPG, .JPEG
-        </p>
       </section>
 
       {/* Footer */}
@@ -84,5 +102,7 @@ export default function Menu() {
         </p>
       </footer>
     </div>
+
+
   );
 }
