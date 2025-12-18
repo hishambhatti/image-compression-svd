@@ -9,7 +9,7 @@ export default function Menu() {
   ];
 
   return (
-    <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[Poppins,sans-serif]'>
+    <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4'>
       {/* Header Section */}
       <header className='w-full flex flex-col items-center text-center mb-12 mt-4 px-4'>
         <div className='flex items-center justify-center gap-2 md:gap-4 lg:gap-10 w-full'>
@@ -23,11 +23,11 @@ export default function Menu() {
 
           {/* Main Title Content */}
           <div className="flex flex-col items-center shrink-0">
-            <h1 className='text-4xl md:text-5xl lg:text-6xl font-light mb-0'>
+            <h1 className='text-4xl md:text-5xl lg:text-6xl font-light mb-0 font-[Vend_Sans]'>
               SVD Image Compression
             </h1>
             <div className='w-12 h-px bg-gray-400 my-4'></div>
-            <p className='text-gray-600 max-w-sm md:max-w-md text-lg leading-relaxed'>
+            <p className='text-gray-600 max-w-md md:max-w-lg text-lg leading-relaxed font-[lilex]'>
               An interactive visualization of image compression using singular value decomposition.
             </p>
           </div>
@@ -44,7 +44,7 @@ export default function Menu() {
 
       {/* Section 1: Portfolio */}
       <section className='w-full max-w-5xl mb-4'>
-        <h2 className='text-xl font-medium text-gray-800 mb-6 text-center uppercase tracking-widest'>
+        <h2 className='text-xl font-medium text-gray-800 mb-6 text-center uppercase tracking-widest font-[Red_Hat_Display]'>
           Explore our Portfolio
         </h2>
         <div className='grid grid-cols-2 md:grid-cols-4 gap-6'>
@@ -71,7 +71,7 @@ export default function Menu() {
 
       {/* Section 2: Upload */}
       <section className='w-full max-w-md flex flex-col items-center border-t border-gray-200 pt-6 mb-8'>
-        <h2 className='text-xl font-medium text-gray-800 mb-6 uppercase tracking-widest'>
+        <h2 className='text-xl font-medium text-gray-800 mb-6 uppercase tracking-widest font-[Red_Hat_Display]'>
           Upload your own image
         </h2>
 
