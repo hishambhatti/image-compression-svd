@@ -52,6 +52,7 @@ function App() {
           loadedData[p] = await n.load(`images/${folder}/${p}.npy`);
         }
         console.log("bw");
+        console.log(loadedData['S'])
         loadedData.isColor = false;
       }
 
