@@ -79,20 +79,40 @@ export default function Visualization({ data }) {
     const ctx = canvas.getContext('2d');
     const imageData = ctx.createImageData(cols, rows);
 
+    // Disable browser smoothing for crisp pixels
+    ctx.imageSmoothingEnabled = false;
+
     if (data.isColor) {
       const r = reconstructChannel(data.U1, data.S1, data.Vt1, k, rows, cols);
       const g = reconstructChannel(data.U2, data.S2, data.Vt2, k, rows, cols);
       const b = reconstructChannel(data.U3, data.S3, data.Vt3, k, rows, cols);
+
       for (let i = 0; i < rows * cols; i++) {
-        imageData.data[i * 4] = r[i]; imageData.data[i * 4 + 1] = g[i];
-        imageData.data[i * 4 + 2] = b[i]; imageData.data[i * 4 + 3] = 255;
+        // Multiply by 255 to move from [0, 1] range to [0, 255]
+        imageData.data[i * 4] = r[i] * 255;     // R
+        imageData.data[i * 4 + 1] = g[i] * 255; // G
+        imageData.data[i * 4 + 2] = b[i] * 255; // B
+        imageData.data[i * 4 + 3] = 255;         // Alpha
       }
     } else {
       const gray = reconstructChannel(data.U, data.S, data.Vt, k, rows, cols);
-      for (let i = 0; i < rows * cols; i++) {
+      // Compute min/max ONCE
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < gray.length; i++) {
         const v = gray[i];
-        imageData.data[i * 4] = v; imageData.data[i * 4 + 1] = v;
-        imageData.data[i * 4 + 2] = v; imageData.data[i * 4 + 3] = 255;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+
+      const range = max - min || 1; // avoid divide-by-zero
+
+      for (let i = 0; i < rows * cols; i++) {
+        const v = ((gray[i] - min) / range) * 255;
+        imageData.data[i * 4]     = v;
+        imageData.data[i * 4 + 1] = v;
+        imageData.data[i * 4 + 2] = v;
+        imageData.data[i * 4 + 3] = 255;
       }
     }
     ctx.putImageData(imageData, 0, 0);
