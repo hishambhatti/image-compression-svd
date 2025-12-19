@@ -16,10 +16,12 @@ export default function Visualization({ data }) {
   const rows = data.isColor ? data.U1.shape[0] : data.U.shape[0];
   const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
 
+  // Calculate total sum once for the Energy Retained stat
+  const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
+
   const chartData = useMemo(() => {
     const EPS = 1e-5;
     let runningSum = 0;
-    const totalSum = Array.from(S_vector).reduce((a, b) => a + b, 0);
 
     return Array.from(S_vector).map((val, i) => {
       runningSum += val;
@@ -27,26 +29,34 @@ export default function Visualization({ data }) {
         index: i + 1,
         renderVal: val > 0 ? val : EPS,
         trueVal: val,
-        cumulative: (runningSum / totalSum) * 100
+        cumulative: (runningSum / totalS_Sum) * 100
       };
     }).slice(0, 150);
-  }, [S_vector]);
+  }, [S_vector, totalS_Sum]);
 
-  // Find the data point for the red dot (constrained to visible graph range)
   const currentPoint = chartData[Math.min(k - 1, chartData.length - 1)];
 
-  // Helper for Tooltip formatting
+  // Formatter to handle 0 and 100 specifically
   const tooltipFormatter = (value, name, props) => {
     const displayName = name === "renderVal" ? "Value" : "Cumulative Sum";
-    // If it's the singular value and we used the EPS offset, show 0
-    const displayValue = (name === "renderVal" && props.payload.trueVal === 0)
-      ? "0.00000"
-      : value.toFixed(5);
+
+    // Logic for specific values
+    const actualValue = name === "renderVal" ? props.payload.trueVal : value;
+
+    let displayValue;
+    if (actualValue === 0) displayValue = "0";
+    else if (actualValue === 100) displayValue = "100";
+    else displayValue = actualValue.toFixed(5);
 
     return [displayValue, displayName];
   };
 
-  // ... (reconstructChannel and renderApproximation remain the same)
+  // Logic for the Energy Retained Panel (Accurate for all k)
+  const energyRetained = useMemo(() => {
+    const subSum = Array.from(S_vector).slice(0, k).reduce((a, b) => a + b, 0);
+    return (subSum / totalS_Sum) * 100;
+  }, [k, S_vector, totalS_Sum]);
+
   const reconstructChannel = (U, S, Vt, k, m, n) => {
     const uNd = ndarray(U.data, [m, U.shape[1]]);
     const sNd = S.data;
@@ -94,7 +104,7 @@ export default function Visualization({ data }) {
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
-      <header className='w-full flex flex-col items-center text-center mb-8 mt-4 px-4'>
+      <header className='w-full flex flex-col items-center text-center mb-8 mt-4 px-4 text-black'>
         <div className='flex items-center justify-center gap-10 w-full'>
           <img src="circle.png" alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
           <div className="flex flex-col items-center shrink-0">
@@ -108,7 +118,7 @@ export default function Visualization({ data }) {
       <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-5 flex flex-col items-center space-y-6">
           <div
-            className="relative w-full aspect-video bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center overflow-hidden p-6"
+            className="relative w-full aspect-video bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center overflow-hidden p-6 cursor-crosshair"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
@@ -134,7 +144,6 @@ export default function Visualization({ data }) {
 
         <div className="lg:col-span-7 flex flex-col space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Singular Value Decay Chart */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-64">
               <p className="text-[10px] uppercase tracking-widest mb-4 text-gray-400 font-bold">Singular Values (Log)</p>
               <ResponsiveContainer width="100%" height="85%">
@@ -151,7 +160,6 @@ export default function Visualization({ data }) {
               </ResponsiveContainer>
             </div>
 
-            {/* Cumulative Sum Chart */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-64">
               <p className="text-[10px] uppercase tracking-widest mb-4 text-gray-400 font-bold">Cumulative Sum (%)</p>
               <ResponsiveContainer width="100%" height="85%">
@@ -173,7 +181,7 @@ export default function Visualization({ data }) {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Energy Retained</p>
               <p className="text-4xl font-light text-slate-800">
-                {((chartData[k-1]?.cumulative) || 100).toFixed(2)}<span className="text-xl">%</span>
+                {energyRetained.toFixed(2)}<span className="text-xl">%</span>
               </p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
