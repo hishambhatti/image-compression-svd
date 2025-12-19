@@ -31,7 +31,7 @@ export default function Visualization({ data }) {
         trueVal: val,
         cumulative: (runningSum / totalS_Sum) * 100
       };
-    }).slice(0, 150);
+    });
   }, [S_vector, totalS_Sum]);
 
   const currentPoint = chartData[Math.min(k - 1, chartData.length - 1)];
