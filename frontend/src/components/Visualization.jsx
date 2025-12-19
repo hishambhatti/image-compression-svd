@@ -123,9 +123,9 @@ export default function Visualization({ data }) {
             onMouseLeave={() => setIsHovered(false)}
           >
             {isHovered ? (
-              <img src={data.originalPath} alt="Original" className="max-w-full max-h-full object-contain shadow-xl" />
+              <img src={data.originalPath} alt="Original" className="w-full h-full object-contain" style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }} />
             ) : (
-              <canvas ref={canvasRef} width={cols} height={rows} className="max-w-full max-h-full object-contain shadow-xl" />
+              <canvas ref={canvasRef} width={cols} height={rows} className="w-full h-full object-contain" style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }} />
             )}
           </div>
 
