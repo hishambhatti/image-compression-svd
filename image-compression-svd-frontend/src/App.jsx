@@ -22,47 +22,49 @@ function App() {
   };
 
   async function handleSelectTemplate(selectedImg) {
-    setPageNum(2); // Switch to Loading screen
+    setPageNum(2);
     const n = new npyjs();
     const folder = selectedImg.folder;
 
+    // Use Vite's BASE_URL (which is "/image-compression-svd")
+    // We ensure there are no double slashes by cleaning it up
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const baseUrl = `${base}/images/${folder}`;
+
     try {
-      // Check for color vs BW by attempting to load U1.npy
-      // If U1 exists, we assume it's a color image (3 channels)
-      // Otherwise, we fall back to the single U.npy
       let loadedData = {};
+      let isColor = false;
 
+      // 1. Check for Color
       try {
-        // Attempt Color Load
-        const paths = ['U', 'S', 'Vt'];
-        const channels = [1, 2, 3];
+        await n.load(`${baseUrl}/U1.npy`);
+        isColor = true;
+      } catch (e) {
+        isColor = false;
+      }
 
-        for (let c of channels) {
+      if (isColor) {
+        const paths = ['U', 'S', 'Vt'];
+        for (let c of [1, 2, 3]) {
           for (let p of paths) {
-            const fileName = `${p}${c}.npy`;
-            loadedData[`${p}${c}`] = await n.load(`images/${folder}/${fileName}`);
+            loadedData[`${p}${c}`] = await n.load(`${baseUrl}/${p}${c}.npy`);
           }
         }
-        console.log("color");
         loadedData.isColor = true;
-      } catch (e) {
-        // Fallback to Black and White
-        const paths = ['U', 'S', 'Vt'];
-        for (let p of paths) {
-          loadedData[p] = await n.load(`images/${folder}/${p}.npy`);
-        }
-        console.log("bw");
-        console.log(loadedData['S'])
+      } else {
+        // 2. Grayscale Fallback
+        loadedData['U'] = await n.load(`${baseUrl}/U.npy`);
+        loadedData['S'] = await n.load(`${baseUrl}/S.npy`);
+        loadedData['Vt'] = await n.load(`${baseUrl}/Vt.npy`);
         loadedData.isColor = false;
       }
 
-      // Attach the original path from the portfolio object
       loadedData.originalPath = selectedImg.path;
       setMatrices(loadedData);
-      setPageNum(3); // Switch to Visualization
+      setPageNum(3);
     } catch (err) {
-      console.error("Failed to load matrices:", err);
-      setPageNum(1); // Return to menu on error
+      console.error("Critical Load Error:", err);
+      setPageNum(1);
     }
   }
 

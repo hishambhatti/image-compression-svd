@@ -5,6 +5,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, ReferenceDot
 } from 'recharts';
+import circleImg from '../assets/circle.png';
+import ellipseImg from '../assets/ellipse.png';
 
 export default function Visualization({ data }) {
   const [k, setK] = useState(1);
@@ -126,12 +128,12 @@ export default function Visualization({ data }) {
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
       <header className='w-full flex flex-col items-center text-center mb-8 mt-4 px-4 text-black'>
         <div className='flex items-center justify-center gap-10 w-full'>
-          <img src="circle.png" alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
+          <img src={circleImg} alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
           <div className="flex flex-col items-center shrink-0">
             <h1 className='text-4xl md:text-5xl lg:text-6xl font-light mb-0 font-[Vend_Sans]'>SVD Image Compression</h1>
             <div className='w-12 h-px bg-gray-400 my-4'></div>
           </div>
-          <img src="ellipse.png" alt="Ellipse" className="hidden md:block w-24 h-24 object-contain" />
+          <img src={ellipseImg} alt="Ellipse" className="hidden md:block w-24 h-24 object-contain" />
         </div>
       </header>
 

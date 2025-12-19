@@ -1,5 +1,7 @@
 import React from 'react';
 import * as C from "../utils/utils";
+import circleImg from '../assets/circle.png';
+import ellipseImg from '../assets/ellipse.png';
 
 export default function Menu({ onSelect }) {
 
@@ -11,7 +13,7 @@ export default function Menu({ onSelect }) {
 
           {/* Left Image: Circle */}
           <img
-            src="circle.png"
+            src={circleImg}
             alt="Unit Circle"
             className="hidden md:block w-32 h-32 lg:w-42 lg:h-42 object-contain"
           />
@@ -29,7 +31,7 @@ export default function Menu({ onSelect }) {
 
           {/* Right Image: Ellipse */}
           <img
-            src="ellipse.png"
+            src={ellipseImg}
             alt="Transformed Ellipse"
             className="hidden md:block w-32 h-32 lg:w-42 lg:h-42 object-contain"
           />
