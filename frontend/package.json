@@ -1,5 +1,6 @@
 {
   "name": "image-compression-svd-frontend",
+  "homepage": "https://hishambhatti.github.io/image-compression-svd/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,10 +8,13 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "gh-pages": "^6.3.0",
     "ndarray": "^1.0.19",
     "ndarray-gemm": "^1.0.0",
     "npyjs": "^1.0.4",
