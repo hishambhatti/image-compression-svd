@@ -1,40 +1,52 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ndarray from 'ndarray';
 import gemm from 'ndarray-gemm';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, AreaChart, Area, ReferenceDot
+} from 'recharts';
 
 export default function Visualization({ data }) {
   const [k, setK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
 
-  // 1. Data Parsing
   const S_vector = data.isColor ? data.S1.data : data.S.data;
   const maxK = S_vector.length;
   const rows = data.isColor ? data.U1.shape[0] : data.U.shape[0];
   const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
 
-  // 2. Prepare Graph Data (Matches Python: semilogy and cumsum/sum)
   const chartData = useMemo(() => {
-    const EPS = 1e-5; // For log-scale rendering
+    const EPS = 1e-5;
     let runningSum = 0;
     const totalSum = Array.from(S_vector).reduce((a, b) => a + b, 0);
 
-    // We map all values for the cumulative math, but can slice for display performance
     return Array.from(S_vector).map((val, i) => {
       runningSum += val;
       return {
         index: i + 1,
-        // What the chart uses internally
-        renderVal: val > 0 ? val : EPS, // Avoid 0 for log scale
-        // What the user should see
+        renderVal: val > 0 ? val : EPS,
         trueVal: val,
         cumulative: (runningSum / totalSum) * 100
       };
-    }).slice(0, 150); // Show first 150 components for visual clarity
+    }).slice(0, 150);
   }, [S_vector]);
 
-  // Matrix Reconstruction (Keeping your existing logic)
+  // Find the data point for the red dot (constrained to visible graph range)
+  const currentPoint = chartData[Math.min(k - 1, chartData.length - 1)];
+
+  // Helper for Tooltip formatting
+  const tooltipFormatter = (value, name, props) => {
+    const displayName = name === "renderVal" ? "Value" : "Cumulative Sum";
+    // If it's the singular value and we used the EPS offset, show 0
+    const displayValue = (name === "renderVal" && props.payload.trueVal === 0)
+      ? "0.00000"
+      : value.toFixed(5);
+
+    return [displayValue, displayName];
+  };
+
+  // ... (reconstructChannel and renderApproximation remain the same)
   const reconstructChannel = (U, S, Vt, k, m, n) => {
     const uNd = ndarray(U.data, [m, U.shape[1]]);
     const sNd = S.data;
@@ -82,7 +94,6 @@ export default function Visualization({ data }) {
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
-      {/* Header */}
       <header className='w-full flex flex-col items-center text-center mb-8 mt-4 px-4'>
         <div className='flex items-center justify-center gap-10 w-full'>
           <img src="circle.png" alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
@@ -94,10 +105,7 @@ export default function Visualization({ data }) {
         </div>
       </header>
 
-      {/* Main Split Content */}
       <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-
-        {/* LEFT SIDE: Image Box (Landscape Rectangle) */}
         <div className="lg:col-span-5 flex flex-col items-center space-y-6">
           <div
             className="relative w-full aspect-video bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center overflow-hidden p-6"
@@ -107,12 +115,7 @@ export default function Visualization({ data }) {
             {isHovered ? (
               <img src={data.originalPath} alt="Original" className="max-w-full max-h-full object-contain shadow-xl" />
             ) : (
-              <canvas
-                ref={canvasRef}
-                width={cols}
-                height={rows}
-                className="max-w-full max-h-full object-contain shadow-xl"
-              />
+              <canvas ref={canvasRef} width={cols} height={rows} className="max-w-full max-h-full object-contain shadow-xl" />
             )}
           </div>
 
@@ -129,11 +132,9 @@ export default function Visualization({ data }) {
           </div>
         </div>
 
-        {/* RIGHT SIDE: Graphs & Stats */}
         <div className="lg:col-span-7 flex flex-col space-y-6">
-
-          {/* Top: Side-by-Side Graphs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Singular Value Decay Chart */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-64">
               <p className="text-[10px] uppercase tracking-widest mb-4 text-gray-400 font-bold">Singular Values (Log)</p>
               <ResponsiveContainer width="100%" height="85%">
@@ -141,12 +142,16 @@ export default function Visualization({ data }) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                   <XAxis dataKey="index" hide />
                   <YAxis scale="log" domain={['auto', 'auto']} hide />
-                  <Tooltip labelClassName="text-black" />
+                  <Tooltip formatter={tooltipFormatter} />
                   <Line type="monotone" dataKey="renderVal" stroke="#0ea5e9" dot={false} strokeWidth={2} />
+                  {k <= 150 && (
+                    <ReferenceDot x={k} y={currentPoint.renderVal} r={5} fill="red" stroke="white" />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
+            {/* Cumulative Sum Chart */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-64">
               <p className="text-[10px] uppercase tracking-widest mb-4 text-gray-400 font-bold">Cumulative Sum (%)</p>
               <ResponsiveContainer width="100%" height="85%">
@@ -154,14 +159,16 @@ export default function Visualization({ data }) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                   <XAxis dataKey="index" hide />
                   <YAxis domain={[0, 100]} fontSize={10} />
-                  <Tooltip />
+                  <Tooltip formatter={tooltipFormatter} />
                   <Area type="monotone" dataKey="cumulative" stroke="#10b981" fill="#ecfdf5" />
+                  {k <= 150 && (
+                    <ReferenceDot x={k} y={currentPoint.cumulative} r={5} fill="red" stroke="white" />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Bottom: Statistics Panels */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
               <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Energy Retained</p>
@@ -176,10 +183,6 @@ export default function Visualization({ data }) {
               </p>
             </div>
           </div>
-
-          {/* <div className="bg-slate-800 text-white p-4 rounded-xl text-xs font-[lilex] leading-relaxed opacity-90">
-             Note: $A_k = \sum_{i=1}^{k} \sigma_i u_i v_i^T$. Increasing $k$ adds more "principal components" back into the image.
-          </div> */}
         </div>
       </main>
     </div>
