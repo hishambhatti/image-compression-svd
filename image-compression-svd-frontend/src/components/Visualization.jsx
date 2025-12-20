@@ -13,73 +13,10 @@ export default function Visualization({ data, onBack }) {
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
 
-  const US_cache = useRef(null);
-  const US1_cache = useRef(null);
-  const US2_cache = useRef(null);
-  const US3_cache = useRef(null);
-
   const S_vector = data.isColor ? data.S1.data : data.S.data;
   const maxK = S_vector.length;
-  const rows = data.isColor ? data.U1.shape[0] : data.U.shape[0];
+  const rows = data.isColor ? data.US1.shape[0] : data.US.shape[0];
   const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
-
-  useEffect(() => {
-    const m = rows;
-
-    if (data.isColor) {
-      const U1 = data.U1;
-      const S1 = data.S1;
-      const U2 = data.U2;
-      const S2 = data.S2;
-      const U3 = data.U3;
-      const S3 = data.S3;
-
-      const r = U1.shape[1];
-
-      const uNd1 = ndarray(U1.data, [m, r])
-      const uNd2 = ndarray(U2.data, [m, r])
-      const uNd3 = ndarray(U3.data, [m, r])
-
-      const US1 = new Float32Array(m * r);
-      const US2 = new Float32Array(m * r);
-      const US3 = new Float32Array(m * r);
-
-      for (let j = 0; j < r; j++) {
-        const sigma1 = S1.data[j];
-        const sigma2 = S2.data[j]
-        const sigma3 = S3.data[j]
-        for (let i = 0; i < m; i++) {
-          US1[i * r + j] = uNd1.get(i, j) * sigma1;
-          US2[i * r + j] = uNd2.get(i, j) * sigma2;
-          US3[i * r + j] = uNd3.get(i, j) * sigma3;
-        }
-      }
-
-      US1_cache.current = ndarray(US1, [m, r]);
-      US2_cache.current = ndarray(US2, [m, r]);
-      US3_cache.current = ndarray(US3, [m, r]);
-
-    } else {
-      const U = data.U;
-      const S = data.S;
-
-      const r = U.shape[1];
-
-      const uNd = ndarray(U.data, [m, r]);
-      const s = S.data;
-      const US = new Float32Array(m * r);
-
-      // US[:, j] = U[:, j] * S[j]
-      for (let j = 0; j < r; j++) {
-        const sigma = s[j];
-        for (let i = 0; i < m; i++) {
-          US[i * r + j] = uNd.get(i, j) * sigma;
-        }
-      }
-
-      US_cache.current = ndarray(US, [m, r]);
-    }
-  }, [data, rows]);
 
   // Calculate total sum once for the Energy Retained stat
   const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
@@ -176,7 +113,6 @@ export default function Visualization({ data, onBack }) {
 
   const renderApproximation = () => {
     if (!canvasRef.current) return;
-    if (!data.isColor && !US_cache.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const imageData = ctx.createImageData(cols, rows);
@@ -185,9 +121,9 @@ export default function Visualization({ data, onBack }) {
     ctx.imageSmoothingEnabled = false;
 
     if (data.isColor) {
-      const r = reconstructChannel(US1_cache.current, data.Vt1, k, rows, cols);
-      const g = reconstructChannel(US2_cache.current, data.Vt2, k, rows, cols);
-      const b = reconstructChannel(US3_cache.current, data.Vt3, k, rows, cols);
+      const r = reconstructChannel(data.US1, data.Vt1, k, rows, cols);
+      const g = reconstructChannel(data.US2, data.Vt2, k, rows, cols);
+      const b = reconstructChannel(data.US3, data.Vt3, k, rows, cols);
 
       for (let i = 0; i < rows * cols; i++) {
         // Multiply by 255 to move from [0, 1] range to [0, 255]
@@ -197,7 +133,7 @@ export default function Visualization({ data, onBack }) {
         imageData.data[i * 4 + 3] = 255;         // Alpha
       }
     } else {
-      const gray = reconstructChannel(US_cache.current, data.Vt, k, rows, cols);
+      const gray = reconstructChannel(data.US, data.Vt, k, rows, cols);
 
       // Compute min/max ONCE
       let min = Infinity;

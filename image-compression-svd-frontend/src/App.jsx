@@ -3,6 +3,7 @@ import npyjs from "npyjs";
 import Menu from "./components/Menu";
 import Loading from "./components/Loading";
 import Visualization from "./components/Visualization";
+import ndarray from "ndarray";
 
 function App() {
   const [pageNum, setPageNum] = useState(1);
@@ -10,6 +11,23 @@ function App() {
 
   function onBack() {
     setPageNum(1);
+  }
+
+  function computeUS(U, S) {
+    const m = U.shape[0];
+    const r = U.shape[1];
+
+    const uNd = ndarray(U.data, [m, r]);
+    const US = new Float32Array(m * r);
+
+    for (let j = 0; j < r; j++) {
+      const sigma = S.data[j];
+      for (let i = 0; i < m; i++) {
+        US[i * r + j] = uNd.get(i, j) * sigma;
+      }
+    }
+
+    return ndarray(US, [m, r]);
   }
 
   // For the file input onChange:
@@ -48,18 +66,26 @@ function App() {
       }
 
       if (isColor) {
-        const paths = ['U', 'S', 'Vt'];
         for (let c of [1, 2, 3]) {
-          for (let p of paths) {
-            loadedData[`${p}${c}`] = await n.load(`${baseUrl}/${p}${c}.npy`);
-          }
+          const U = await n.load(`${baseUrl}/U${c}.npy`);
+          const S = await n.load(`${baseUrl}/S${c}.npy`);
+          const Vt = await n.load(`${baseUrl}/Vt${c}.npy`);
+
+          loadedData[`US${c}`] = computeUS(U, S);
+          loadedData[`Vt${c}`] = Vt;
+          loadedData[`S${c}`] = S; // still needed for charts + stats
         }
+
         loadedData.isColor = true;
       } else {
         // 2. Grayscale Fallback
-        loadedData['U'] = await n.load(`${baseUrl}/U.npy`);
-        loadedData['S'] = await n.load(`${baseUrl}/S.npy`);
-        loadedData['Vt'] = await n.load(`${baseUrl}/Vt.npy`);
+        const U = await n.load(`${baseUrl}/U.npy`);
+        const S = await n.load(`${baseUrl}/S.npy`);
+        const Vt = await n.load(`${baseUrl}/Vt.npy`);
+
+        loadedData.US = computeUS(U, S);
+        loadedData.S = S;
+        loadedData.Vt = Vt;
         loadedData.isColor = false;
       }
 
