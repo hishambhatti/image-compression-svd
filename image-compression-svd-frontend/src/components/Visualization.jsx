@@ -73,6 +73,9 @@ export default function Visualization({ data }) {
     // Compression Ratio: Compressed / Uncompressed
     const compressionRatio = paramsCompressed / paramsUncompressed;
 
+    // Space Saved (%)
+    const spacedSaved = 100 * (paramsUncompressed - paramsCompressed) / paramsUncompressed
+
     // MSE Calculation: Sum of squares of omitted singular values / total pixels
     // If color, we average the MSE across the 3 channels
     let sumSquaredOmitted = 0;
@@ -94,7 +97,8 @@ export default function Visualization({ data }) {
       paramsUncompressed,
       paramsCompressed,
       compressionRatio,
-      mse
+      mse,
+      spacedSaved
     };
   }, [k, rows, cols, data, S_vector]);
 
@@ -241,29 +245,29 @@ export default function Visualization({ data }) {
           {/* Updated Statistics Section: 4 boxes side-by-side */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Raw)</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Raw):</p>
               <p className="text-2xl font-light text-slate-800">
                 {stats.paramsUncompressed.toLocaleString()}
               </p>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Comp)</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Comp):</p>
               <p className="text-2xl font-light text-slate-800">
                 {stats.paramsCompressed.toLocaleString()}
               </p>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">MSE</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">MSE:</p>
               <p className="text-2xl font-light text-slate-800">
                 {stats.mse < 0.00001 ? 0 : stats.mse.toFixed(5)}
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Compression Ratio</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Space Saved:</p>
               <p className="text-2xl font-light text-slate-800">
-                {stats.compressionRatio.toFixed(3)}x
+                {stats.spacedSaved.toFixed(3)}%
               </p>
             </div>
           </div>
