@@ -10,6 +10,7 @@ import ellipseImg from '../assets/ellipse.png';
 
 export default function Visualization({ data, onBack }) {
   const [k, setK] = useState(1);
+  const [renderK, setRenderK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
 
@@ -20,6 +21,24 @@ export default function Visualization({ data, onBack }) {
 
   // Calculate total sum once for the Energy Retained stat
   const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
+
+  const lastFrameTime = useRef(0);
+  const FRAME_INTERVAL = 25; // ms → ~40 FPS
+
+  useEffect(() => {
+    let rafId;
+
+    const update = (timestamp) => {
+      if (timestamp - lastFrameTime.current >= FRAME_INTERVAL) {
+        setRenderK(k);
+        lastFrameTime.current = timestamp;
+      }
+      rafId = requestAnimationFrame(update);
+    };
+
+    rafId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(rafId);
+  }, [k]);
 
   const chartData = useMemo(() => {
     const EPS = 1e-5;
@@ -121,9 +140,9 @@ export default function Visualization({ data, onBack }) {
     ctx.imageSmoothingEnabled = false;
 
     if (data.isColor) {
-      const r = reconstructChannel(data.US1, data.Vt1, k, rows, cols);
-      const g = reconstructChannel(data.US2, data.Vt2, k, rows, cols);
-      const b = reconstructChannel(data.US3, data.Vt3, k, rows, cols);
+      const r = reconstructChannel(data.US1, data.Vt1, renderK, rows, cols);
+      const g = reconstructChannel(data.US2, data.Vt2, renderK, rows, cols);
+      const b = reconstructChannel(data.US3, data.Vt3, renderK, rows, cols);
 
       for (let i = 0; i < rows * cols; i++) {
         // Multiply by 255 to move from [0, 1] range to [0, 255]
@@ -133,7 +152,7 @@ export default function Visualization({ data, onBack }) {
         imageData.data[i * 4 + 3] = 255;         // Alpha
       }
     } else {
-      const gray = reconstructChannel(data.US, data.Vt, k, rows, cols);
+      const gray = reconstructChannel(data.US, data.Vt, renderK, rows, cols);
 
       // Compute min/max ONCE
       let min = Infinity;
@@ -159,7 +178,7 @@ export default function Visualization({ data, onBack }) {
 
   useEffect(() => {
     if (!isHovered) renderApproximation();
-  }, [k, isHovered]);
+  }, [renderK, isHovered]);
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
