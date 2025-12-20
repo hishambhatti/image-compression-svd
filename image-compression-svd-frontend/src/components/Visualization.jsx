@@ -59,6 +59,45 @@ export default function Visualization({ data }) {
     return (subSum / totalS_Sum) * 100;
   }, [k, S_vector, totalS_Sum]);
 
+  const stats = useMemo(() => {
+    const m = rows;
+    const n = cols;
+    const colorMult = data.isColor ? 3 : 1;
+
+    // Parameters Uncompressed: Total pixels
+    const paramsUncompressed = m * n * colorMult;
+
+    // Parameters Compressed: k*(m + n + 1) per channel
+    const paramsCompressed = k * (m + n + 1) * colorMult;
+
+    // Compression Ratio: Compressed / Uncompressed
+    const compressionRatio = paramsCompressed / paramsUncompressed;
+
+    // MSE Calculation: Sum of squares of omitted singular values / total pixels
+    // If color, we average the MSE across the 3 channels
+    let sumSquaredOmitted = 0;
+    if (data.isColor) {
+      const s1 = Array.from(data.S1.data).slice(k);
+      const s2 = Array.from(data.S2.data).slice(k);
+      const s3 = Array.from(data.S3.data).slice(k);
+      sumSquaredOmitted += s1.reduce((acc, val) => acc + (val * val), 0);
+      sumSquaredOmitted += s2.reduce((acc, val) => acc + (val * val), 0);
+      sumSquaredOmitted += s3.reduce((acc, val) => acc + (val * val), 0);
+    } else {
+      const s = Array.from(S_vector).slice(k);
+      sumSquaredOmitted = s.reduce((acc, val) => acc + (val * val), 0);
+    }
+
+    const mse = sumSquaredOmitted / (m * n * colorMult);
+
+    return {
+      paramsUncompressed,
+      paramsCompressed,
+      compressionRatio,
+      mse
+    };
+  }, [k, rows, cols, data, S_vector]);
+
   const reconstructChannel = (U, S, Vt, k, m, n) => {
     const uNd = ndarray(U.data, [m, U.shape[1]]);
     const sNd = S.data;
@@ -126,7 +165,7 @@ export default function Visualization({ data }) {
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
-      <header className='w-full flex flex-col items-center text-center mb-8 mt-4 px-4 text-black'>
+      <header className='w-full flex flex-col items-center text-center mb-2 mt-4 px-4 text-black'>
         <div className='flex items-center justify-center gap-10 w-full'>
           <img src={circleImg} alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
           <div className="flex flex-col items-center shrink-0">
@@ -140,7 +179,7 @@ export default function Visualization({ data }) {
       <main className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <div className="lg:col-span-5 flex flex-col items-center space-y-6">
           <div
-            className="relative w-full aspect-video bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center overflow-hidden p-6 cursor-crosshair"
+            className="relative w-full aspect-square bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center overflow-hidden p-6 cursor-crosshair"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
@@ -199,17 +238,32 @@ export default function Visualization({ data }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Energy Retained</p>
-              <p className="text-4xl font-light text-slate-800">
-                {energyRetained.toFixed(2)}<span className="text-xl">%</span>
+          {/* Updated Statistics Section: 4 boxes side-by-side */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Raw)</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.paramsUncompressed.toLocaleString()}
               </p>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Compression Ratio</p>
-              <p className="text-4xl font-light text-slate-800">
-                {( (k * (rows + cols + 1)) / (rows * cols) ).toFixed(3)}
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Parameters (Comp)</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.paramsCompressed.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">MSE</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.mse < 0.00001 ? 0 : stats.mse.toFixed(5)}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Compression Ratio</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.compressionRatio.toFixed(3)}x
               </p>
             </div>
           </div>
