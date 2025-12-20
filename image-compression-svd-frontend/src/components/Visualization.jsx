@@ -13,6 +13,23 @@ export default function Visualization({ data, onBack }) {
   const [renderK, setRenderK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
+  const BLOCK = 20;
+
+  function addRank1InPlace(out, US, Vt, i, m, n) {
+    const USdata = US.data;     // ndarray-backed Float32Array
+    const VtData = Vt.data;    // raw Float32Array
+    const r = US.shape[1];     // rank dimension
+
+    for (let row = 0; row < m; row++) {
+      const u = USdata[row * r + i];
+      const rowOffset = row * n;
+      const vtOffset = i * n;
+
+      for (let col = 0; col < n; col++) {
+        out[rowOffset + col] += u * VtData[vtOffset + col];
+      }
+    }
+  }
 
   const S_vector = data.isColor ? data.S1.data : data.S.data;
   const maxK = S_vector.length;
@@ -120,61 +137,71 @@ export default function Visualization({ data, onBack }) {
     };
   }, [k, rows, cols, data, S_vector]);
 
-  const reconstructChannel = (US, Vt, k, m, n) => {
-    const result = ndarray(new Float32Array(m * n), [m, n]);
+  // const reconstructChannel = (US, Vt, k, m, n) => {
+  //   const result = ndarray(new Float32Array(m * n), [m, n]);
 
-    const US_k = US.hi(m, k);         // m × k
-    const Vt_k = ndarray(Vt.data, [Vt.shape[0], n]).hi(k, n); // k × n
+  //   const US_k = US.hi(m, k);         // m × k
+  //   const Vt_k = ndarray(Vt.data, [Vt.shape[0], n]).hi(k, n); // k × n
 
-    gemm(result, US_k, Vt_k);
-    return result.data;
-  };
+  //   gemm(result, US_k, Vt_k);
+  //   return result.data;
+  // };
 
   const renderApproximation = () => {
     if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const imageData = ctx.createImageData(cols, rows);
 
-    // Disable browser smoothing for crisp pixels
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const imageData = ctx.createImageData(cols, rows);
     ctx.imageSmoothingEnabled = false;
 
+    const base = Math.floor(renderK / BLOCK);
+    const offset = renderK - base * BLOCK;
+
     if (data.isColor) {
-      const r = reconstructChannel(data.US1, data.Vt1, renderK, rows, cols);
-      const g = reconstructChannel(data.US2, data.Vt2, renderK, rows, cols);
-      const b = reconstructChannel(data.US3, data.Vt3, renderK, rows, cols);
+      const r = new Float32Array(data.checkpoints1[base]);
+      const g = new Float32Array(data.checkpoints2[base]);
+      const b = new Float32Array(data.checkpoints3[base]);
+
+      for (let i = base * BLOCK; i < base * BLOCK + offset; i++) {
+        addRank1InPlace(r, data.US1, data.Vt1, i, rows, cols);
+        addRank1InPlace(g, data.US2, data.Vt2, i, rows, cols);
+        addRank1InPlace(b, data.US3, data.Vt3, i, rows, cols);
+      }
 
       for (let i = 0; i < rows * cols; i++) {
-        // Multiply by 255 to move from [0, 1] range to [0, 255]
-        imageData.data[i * 4] = r[i] * 255;     // R
-        imageData.data[i * 4 + 1] = g[i] * 255; // G
-        imageData.data[i * 4 + 2] = b[i] * 255; // B
-        imageData.data[i * 4 + 3] = 255;         // Alpha
+        imageData.data[i * 4]     = r[i] * 255;
+        imageData.data[i * 4 + 1] = g[i] * 255;
+        imageData.data[i * 4 + 2] = b[i] * 255;
+        imageData.data[i * 4 + 3] = 255;
       }
     } else {
-      const gray = reconstructChannel(data.US, data.Vt, renderK, rows, cols);
+      const gray = new Float32Array(data.checkpoints[base]);
 
-      // Compute min/max ONCE
-      let min = Infinity;
-      let max = -Infinity;
-      for (let i = 0; i < gray.length; i++) {
-        const v = gray[i];
+      for (let i = base * BLOCK; i < base * BLOCK + offset; i++) {
+        addRank1InPlace(gray, data.US, data.Vt, i, rows, cols);
+      }
+
+      let min = Infinity, max = -Infinity;
+      for (let v of gray) {
         if (v < min) min = v;
         if (v > max) max = v;
       }
 
-      const range = max - min || 1; // avoid divide-by-zero
+      const range = max - min || 1;
 
       for (let i = 0; i < rows * cols; i++) {
         const v = ((gray[i] - min) / range) * 255;
-        imageData.data[i * 4]     = v;
-        imageData.data[i * 4 + 1] = v;
+        imageData.data[i * 4] =
+        imageData.data[i * 4 + 1] =
         imageData.data[i * 4 + 2] = v;
         imageData.data[i * 4 + 3] = 255;
       }
     }
+
     ctx.putImageData(imageData, 0, 0);
   };
+
 
   useEffect(() => {
     if (!isHovered) renderApproximation();
@@ -231,9 +258,7 @@ export default function Visualization({ data, onBack }) {
                   <YAxis scale="log" domain={['auto', 'auto']} hide />
                   <Tooltip formatter={tooltipFormatter} />
                   <Line type="monotone" dataKey="renderVal" stroke="#0ea5e9" dot={false} strokeWidth={2} />
-                  {k <= 150 && (
-                    <ReferenceDot x={k} y={currentPoint.renderVal} r={5} fill="red" stroke="white" />
-                  )}
+                  <ReferenceDot x={k} y={currentPoint.renderVal} r={5} fill="red" stroke="white" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -247,9 +272,7 @@ export default function Visualization({ data, onBack }) {
                   <YAxis domain={[0, 100]} fontSize={10} />
                   <Tooltip formatter={tooltipFormatter} />
                   <Area type="monotone" dataKey="cumulative" stroke="#10b981" fill="#ecfdf5" />
-                  {k <= 150 && (
-                    <ReferenceDot x={k} y={currentPoint.cumulative} r={5} fill="red" stroke="white" />
-                  )}
+                  <ReferenceDot x={k} y={currentPoint.cumulative} r={5} fill="red" stroke="white" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
