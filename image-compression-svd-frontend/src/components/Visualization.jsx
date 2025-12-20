@@ -125,7 +125,7 @@ export default function Visualization({ data, onBack }) {
 
     // PSNR Calculation: 10 * log10(Max^2 / MSE)
     // Since pixels are 0-1, Max is 1. We handle the edge case where MSE is 0.
-    const psnr = mse > 0 ? 10 * Math.log10(1 / mse) : 100;
+    const psnr = mse > 0.00001 ? 10 * Math.log10(1 / mse) : 100;
 
     return {
       paramsUncompressed,
@@ -227,13 +227,27 @@ export default function Visualization({ data, onBack }) {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            {isHovered ? (
-              <img src={data.originalPath} alt="Original" className="w-full h-full object-contain" style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }} />
-            ) : (
-              <canvas ref={canvasRef} width={cols} height={rows} className="w-full h-full object-contain" style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }} />
-            )}
-          </div>
+            <div className="absolute inset-0">
+              {/* Original image (bottom layer) */}
+              <img
+                src={data.originalPath}
+                alt="Original"
+                className={`absolute inset-0 w-full h-full object-contain
+                  ${isHovered ? "opacity-100" : "opacity-0"}`}
+                style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }}
+              />
 
+              {/* SVD canvas (top layer) */}
+              <canvas
+                ref={canvasRef}
+                width={cols}
+                height={rows}
+                className={`absolute inset-0 w-full h-full object-contain
+                  ${isHovered ? "opacity-0" : "opacity-100"}`}
+                style={{ imageRendering: rows < 100 ? 'pixelated' : 'auto' }}
+              />
+            </div>
+          </div>
           <div className="w-full space-y-2 px-4">
             <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest font-bold">
               <span>Rank (k): {k}</span>
