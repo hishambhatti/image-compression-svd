@@ -40,7 +40,7 @@ export default function Visualization({ data, onBack }) {
   const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
 
   const lastFrameTime = useRef(0);
-  const FRAME_INTERVAL = 25; // ms → ~40 FPS
+  const FRAME_INTERVAL = 2; // ms → ~500 FPS
 
   useEffect(() => {
     let rafId;
