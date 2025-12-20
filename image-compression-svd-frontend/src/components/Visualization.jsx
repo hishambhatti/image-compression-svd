@@ -8,7 +8,7 @@ import {
 import circleImg from '../assets/circle.png';
 import ellipseImg from '../assets/ellipse.png';
 
-export default function Visualization({ data }) {
+export default function Visualization({ data, onBack }) {
   const [k, setK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
@@ -53,12 +53,6 @@ export default function Visualization({ data }) {
     return [displayValue, displayName];
   };
 
-  // Logic for the Energy Retained Panel (Accurate for all k)
-  const energyRetained = useMemo(() => {
-    const subSum = Array.from(S_vector).slice(0, k).reduce((a, b) => a + b, 0);
-    return (subSum / totalS_Sum) * 100;
-  }, [k, S_vector, totalS_Sum]);
-
   const stats = useMemo(() => {
     const m = rows;
     const n = cols;
@@ -93,12 +87,17 @@ export default function Visualization({ data }) {
 
     const mse = sumSquaredOmitted / (m * n * colorMult);
 
+    // PSNR Calculation: 10 * log10(Max^2 / MSE)
+    // Since pixels are 0-1, Max is 1. We handle the edge case where MSE is 0.
+    const psnr = mse > 0 ? 10 * Math.log10(1 / mse) : 100;
+
     return {
       paramsUncompressed,
       paramsCompressed,
       compressionRatio,
       mse,
-      spacedSaved
+      spacedSaved,
+      psnr
     };
   }, [k, rows, cols, data, S_vector]);
 
@@ -259,9 +258,9 @@ export default function Visualization({ data }) {
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">MSE:</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">Compression Ratio:</p>
               <p className="text-2xl font-light text-slate-800">
-                {stats.mse < 0.00001 ? 0 : stats.mse.toFixed(5)}
+                {stats.compressionRatio.toFixed(3)}x
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
@@ -270,6 +269,45 @@ export default function Visualization({ data }) {
                 {stats.spacedSaved.toFixed(3)}%
               </p>
             </div>
+          </div>
+
+          {/* Row 2: MSE and PSNR */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">MSE (Mean Squared Error):</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.mse < 0.00001 ? "0" : stats.mse.toFixed(5)}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1 font-bold">PSNR (Peak Signal-to-Noise Ratio):</p>
+              <p className="text-2xl font-light text-slate-800">
+                {stats.psnr === 100 ? "∞" : `${stats.psnr.toFixed(2)} dB`}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons Section */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-1 gap-4">
+              <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700">
+                <i className="fa-solid fa-upload"></i>
+                <span className="text-sm font-bold uppercase tracking-wider">Upload</span>
+              </button>
+
+              <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700">
+                <i className="fa-solid fa-download"></i>
+                <span className="text-sm font-bold uppercase tracking-wider">Download</span>
+              </button>
+            </div>
+
+            <button
+              onClick={onBack} // Assuming you pass a function to return home
+              className="flex-[1.2] flex items-center justify-center gap-2 bg-slate-800 text-white py-3 px-6 rounded-xl shadow-md hover:bg-slate-900 transition-colors"
+            >
+              <i className="fa-solid fa-house-chimney text-xs"></i>
+              <span className="text-sm font-bold uppercase tracking-wider">Return to Home Screen</span>
+            </button>
           </div>
         </div>
       </main>

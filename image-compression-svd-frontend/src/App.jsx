@@ -8,6 +8,10 @@ function App() {
   const [pageNum, setPageNum] = useState(1);
   const [matrices, setMatrices] = useState(null);
 
+  function onBack() {
+    setPageNum(1);
+  }
+
   // For the file input onChange:
   const handleUpload = (e) => {
     const file = e.target.files[0];
@@ -72,7 +76,7 @@ function App() {
     <>
       {pageNum === 1 && <Menu onSelect={handleSelectTemplate} />}
       {pageNum === 2 && <Loading />}
-      {pageNum === 3 && <Visualization data={matrices} />}
+      {pageNum === 3 && <Visualization data={matrices} onBack={onBack}/>}
     </>
   );
 }
