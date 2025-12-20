@@ -13,10 +13,35 @@ export default function Visualization({ data, onBack }) {
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
 
+  const US_cache = useRef(null);
+
   const S_vector = data.isColor ? data.S1.data : data.S.data;
   const maxK = S_vector.length;
   const rows = data.isColor ? data.U1.shape[0] : data.U.shape[0];
   const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
+
+  useEffect(() => {
+    const U = data.isColor ? data.U1 : data.U;
+    const S = data.isColor ? data.S1 : data.S;
+
+    const m = rows;
+    const r = U.shape[1];
+
+    const uNd = ndarray(U.data, [m, r]);
+    const s = S.data;
+
+    const US = new Float32Array(m * r);
+
+    // US[:, j] = U[:, j] * S[j]
+    for (let j = 0; j < r; j++) {
+      const sigma = s[j];
+      for (let i = 0; i < m; i++) {
+        US[i * r + j] = uNd.get(i, j) * sigma;
+      }
+    }
+
+    US_cache.current = ndarray(US, [m, r]);
+  }, [data, rows]);
 
   // Calculate total sum once for the Energy Retained stat
   const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
@@ -101,24 +126,19 @@ export default function Visualization({ data, onBack }) {
     };
   }, [k, rows, cols, data, S_vector]);
 
-  const reconstructChannel = (U, S, Vt, k, m, n) => {
-    const uNd = ndarray(U.data, [m, U.shape[1]]);
-    const sNd = S.data;
-    const vtNd = ndarray(Vt.data, [Vt.shape[0], n]);
+  const reconstructChannel = (US, Vt, k, m, n) => {
     const result = ndarray(new Float32Array(m * n), [m, n]);
-    const usKey = ndarray(new Float32Array(m * k), [m, k]);
-    for (let j = 0; j < k; j++) {
-      for (let i = 0; i < m; i++) {
-        usKey.set(i, j, uNd.get(i, j) * sNd[j]);
-      }
-    }
-    const vt_k = vtNd.hi(k, n);
-    gemm(result, usKey, vt_k);
+
+    const US_k = US.hi(m, k);         // m × k
+    const Vt_k = ndarray(Vt.data, [Vt.shape[0], n]).hi(k, n); // k × n
+
+    gemm(result, US_k, Vt_k);
     return result.data;
   };
 
   const renderApproximation = () => {
     if (!canvasRef.current) return;
+    if (!data.isColor && !US_cache.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const imageData = ctx.createImageData(cols, rows);
@@ -139,7 +159,8 @@ export default function Visualization({ data, onBack }) {
         imageData.data[i * 4 + 3] = 255;         // Alpha
       }
     } else {
-      const gray = reconstructChannel(data.U, data.S, data.Vt, k, rows, cols);
+      const gray = reconstructChannel(US_cache.current, data.Vt, k, rows, cols);
+
       // Compute min/max ONCE
       let min = Infinity;
       let max = -Infinity;
