@@ -8,12 +8,17 @@ import {
 import circleImg from '../assets/circle.png';
 import ellipseImg from '../assets/ellipse.png';
 
-export default function Visualization({ data, onBack }) {
+export default function Visualization({ data, onBack, handleUpload }) {
   const [k, setK] = useState(1);
   const [renderK, setRenderK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
   const BLOCK = 25;
+  const fileInputRef = useRef(null);
+
+  const triggerUpload = () => {
+    fileInputRef.current.click();
+  };
 
   function addRank1InPlace(out, US, Vt, i, m, n) {
     const USdata = US.data;     // ndarray-backed Float32Array
@@ -209,6 +214,15 @@ export default function Visualization({ data, onBack }) {
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4 font-[lilex]'>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleUpload}
+        className="hidden"
+        accept=".png, .jpg, .jpeg"
+      />
+
       <header className='w-full flex flex-col items-center text-center mb-2 mt-4 px-4 text-black'>
         <div className='flex items-center justify-center gap-10 w-full'>
           <img src={circleImg} alt="Circle" className="hidden md:block w-24 h-24 object-contain" />
@@ -341,7 +355,9 @@ export default function Visualization({ data, onBack }) {
           {/* Action Buttons Section */}
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <div className="flex flex-1 gap-4">
-              <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700">
+              <button
+                onClick={triggerUpload} // Use triggerUpload instead of handleUpload directly
+                className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700">
                 <i className="fa-solid fa-upload"></i>
                 <span className="text-sm font-bold uppercase tracking-wider">Upload</span>
               </button>

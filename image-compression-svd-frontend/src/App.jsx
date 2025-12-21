@@ -99,126 +99,77 @@ function App() {
     return { gray, r, g, b, width, height, isColor };
   }
 
-  function computeSVDFromChannel(channel, m, n) {
-    let matrix = new Array(m);
-    for (let i = 0; i < m; i++) {
-      matrix[i] = Array.from(channel.slice(i * n, (i + 1) * n));
-    }
-
-    let transposed = false;
-    if (m < n) {
-      const temp = new Array(n);
-      for (let i = 0; i < n; i++) {
-        temp[i] = new Array(m);
-        for (let j = 0; j < m; j++) temp[i][j] = matrix[j][i];
-      }
-      matrix = temp;
-      transposed = true;
-    }
-
-    const { u, q, v } = SVD(matrix);
-
-    // SORTING STEP
-    // q = singular values, u = left vectors, v = right vectors
-    const sortedIndices = q.map((val, idx) => idx)
-                          .sort((a, b) => q[b] - q[a]); // descending
-
-    const qSorted = sortedIndices.map(i => q[i]);
-    const uSorted = u.map(row => sortedIndices.map(i => row[i]));
-    const vSorted = v.map(row => sortedIndices.map(i => row[i]));
-
-    let U, S, Vt;
-
-    if (!transposed) {
-      const r = qSorted.length;
-      U = ndarray(new Float32Array(uSorted.flat()), [m, r]);
-      S = ndarray(new Float32Array(qSorted), [r]);
-      const VtData = new Float32Array(r * n);
-      for (let i = 0; i < r; i++)
-        for (let j = 0; j < n; j++)
-          VtData[i * n + j] = vSorted[j][i];
-      Vt = ndarray(VtData, [r, n]);
-    } else {
-      const r = qSorted.length;
-      U = ndarray(new Float32Array(vSorted.flat()), [m, r]);
-      S = ndarray(new Float32Array(qSorted), [r]);
-      const VtData = new Float32Array(r * n);
-      for (let i = 0; i < r; i++)
-        for (let j = 0; j < n; j++)
-          VtData[i * n + j] = uSorted[j][i];
-      Vt = ndarray(VtData, [r, n]);
-    }
-
-    return { U, S, Vt };
-  }
-
   async function handleUserUpload(file) {
-  setPageNum(2);
+    setPageNum(2);
+    const img = await loadImageToMatrix(file);
 
-  const img = await loadImageToMatrix(file);
+    setLoadingInfo({
+      wasDownsampled: img.wasDownsampled,
+      originalWidth: img.originalWidth,
+      originalHeight: img.originalHeight,
+      finalWidth: img.width,
+      finalHeight: img.height,
+    });
 
-  // 1. Update the state
-  setLoadingInfo({
-    wasDownsampled: img.wasDownsampled,
-    originalWidth: img.originalWidth,
-    originalHeight: img.originalHeight,
-    finalWidth: img.width,
-    finalHeight: img.height,
-  });
+    const { gray, r, g, b, width, height, isColor } = extractChannels(img);
 
-  // 2. Use setTimeout to defer the heavy math.
-  // This allows the browser to paint the "Downsampling" message first.
-  setTimeout(() => {
-    const {
-      gray,
-      r,
-      g,
-      b,
+    // Initialize Worker (Vite syntax)
+    const worker = new Worker(new URL('./svd.worker.js', import.meta.url), {
+      type: 'module'
+    });
+
+    // Send data to worker
+    worker.postMessage({
+      channels: isColor ? [r, g, b] : [gray],
       width,
       height,
       isColor
-    } = extractChannels(img);
+    });
 
-    let loadedData = {
-      isColor,
-      downsampled: img.wasDownsampled,
-      originalWidth: img.originalWidth,
-      originalHeight: img.originalHeight,
-      finalWidth: width,
-      finalHeight: height,
-    };
+    // Listen for the result
+    worker.onmessage = (e) => {
+      const workerData = e.data;
+      let loadedData = {
+        isColor,
+        downsampled: img.wasDownsampled,
+        originalWidth: img.originalWidth,
+        originalHeight: img.originalHeight,
+        finalWidth: width,
+        finalHeight: height,
+        originalPath: URL.createObjectURL(file)
+      };
 
-    if (isColor) {
-      const ch = [r, g, b];
-      for (let c = 0; c < 3; c++) {
-        const { U, S, Vt } = computeSVDFromChannel(ch[c], height, width);
+      // Reconstruct ndarrays and build checkpoints
+      if (isColor) {
+        for (let c = 1; c <= 3; c++) {
+          const U = ndarray(new Float32Array(workerData[`U${c}`]), [height, workerData[`S${c}`].length]);
+          const S = ndarray(new Float32Array(workerData[`S${c}`]), [workerData[`S${c}`].length]);
+          const Vt = ndarray(new Float32Array(workerData[`Vt${c}`]), [workerData[`S${c}`].length, width]);
+
+          const US = computeUS(U, S);
+          loadedData[`US${c}`] = US;
+          loadedData[`S${c}`] = S;
+          loadedData[`Vt${c}`] = Vt;
+          loadedData[`checkpoints${c}`] = buildCheckpoints(US, Vt, S, height, width);
+        }
+      } else {
+        const U = ndarray(new Float32Array(workerData.U), [height, workerData.S.length]);
+        const S = ndarray(new Float32Array(workerData.S), [workerData.S.length]);
+        const Vt = ndarray(new Float32Array(workerData.Vt), [workerData.S.length, width]);
+
         const US = computeUS(U, S);
-
-        loadedData[`US${c + 1}`] = US;
-        loadedData[`S${c + 1}`] = S;
-        loadedData[`Vt${c + 1}`] = Vt;
-        loadedData[`checkpoints${c + 1}`] =
-          buildCheckpoints(US, Vt, S, height, width);
+        loadedData.US = US;
+        loadedData.S = S;
+        loadedData.Vt = Vt;
+        loadedData.checkpoints = buildCheckpoints(US, Vt, S, height, width);
       }
-    } else {
-      const { U, S, Vt } = computeSVDFromChannel(gray, height, width);
-      const US = computeUS(U, S);
 
-      loadedData.US = US;
-      loadedData.S = S;
-      loadedData.Vt = Vt;
-      loadedData.checkpoints =
-        buildCheckpoints(US, Vt, S, height, width);
-    }
-
-    loadedData.originalPath = URL.createObjectURL(file);
-
-    // 3. Clear and transition
-    setLoadingInfo(null);
-    setMatrices(loadedData);
-    setPageNum(3);
-  }, 100); // 100ms is usually enough to ensure the UI updates
-}
+      setMatrices(loadedData);
+      setLoadingInfo(null);
+      setPageNum(3);
+      worker.terminate(); // Clean up the worker
+    };
+  }
 
   function computeUS(U, S) {
     const m = U.shape[0];
@@ -361,7 +312,7 @@ function App() {
     <>
       {pageNum === 1 && <Menu onSelect={handleSelectTemplate} handleUpload={handleUpload}/>}
       {pageNum === 2 && <Loading info={loadingInfo} />}
-      {pageNum === 3 && <Visualization data={matrices} onBack={onBack}/>}
+      {pageNum === 3 && <Visualization data={matrices} onBack={onBack} handleUpload={handleUpload}/>}
     </>
   );
 }
