@@ -3,7 +3,7 @@ import * as C from "../utils/utils";
 import circleImg from '../assets/circle.png';
 import ellipseImg from '../assets/ellipse.png';
 
-export default function Menu({ onSelect }) {
+export default function Menu({ onSelect, handleUpload }) {
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4'>
@@ -84,7 +84,7 @@ export default function Menu({ onSelect }) {
             type='file'
             className='hidden'
             accept='.png, .jpg, .jpeg'
-            onChange={(e) => console.log(e.target.files[0])}
+            onChange={handleUpload}
           />
         </label>
       </section>

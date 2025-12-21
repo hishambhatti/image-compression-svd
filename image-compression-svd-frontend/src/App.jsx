@@ -4,6 +4,7 @@ import Menu from "./components/Menu";
 import Loading from "./components/Loading";
 import Visualization from "./components/Visualization";
 import ndarray from "ndarray";
+import { SVD } from "svd-js";
 
 function App() {
   const [pageNum, setPageNum] = useState(1);
@@ -12,6 +13,111 @@ function App() {
 
   function onBack() {
     setPageNum(1);
+  }
+
+  function loadImageToMatrix(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.drawImage(img, 0, 0);
+
+        const { data } = ctx.getImageData(0, 0, img.width, img.height);
+        resolve({ data, width: img.width, height: img.height });
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function extractChannels({ data, width, height }) {
+    const gray = new Float32Array(width * height);
+    const r = new Float32Array(width * height);
+    const g = new Float32Array(width * height);
+    const b = new Float32Array(width * height);
+
+    let isColor = false;
+
+    for (let i = 0; i < width * height; i++) {
+      const R = data[i * 4] / 255;
+      const G = data[i * 4 + 1] / 255;
+      const B = data[i * 4 + 2] / 255;
+
+      const A = data[i*4 + 3] / 255; // alpha in [0,1]
+      r[i] = R * A + (1 - A); // blend with white background
+      g[i] = G * A + (1 - A);
+      b[i] = B * A + (1 - A);
+      gray[i] = (r[i] + g[i] + b[i]) / 3;
+
+      if (R !== G || G !== B) isColor = true;
+    }
+
+    console.log(isColor)
+
+    return { gray, r, g, b, width, height, isColor };
+  }
+
+  function computeSVDFromChannel(channel, m, n) {
+    // Build row-major 2D JS array
+    const matrix = new Array(m);
+    for (let i = 0; i < m; i++) {
+      matrix[i] = Array.from(channel.slice(i * n, (i + 1) * n));
+    }
+    // svd-js API
+    const { u, q, v } = SVD(matrix); // q = singular values
+    const r = q.length;
+    // U: m × r
+    const U = ndarray(new Float32Array(u.flat()), [m, r]);
+    // S: r
+    const S = ndarray(new Float32Array(q), [r]);
+    // svd-js gives V (n × r), but you want Vᵀ (r × n)
+    const VtData = new Float32Array(r * n);
+    for (let i = 0; i < r; i++) {
+      for (let j = 0; j < n; j++) {
+        VtData[i * n + j] = v[j][i];
+      }
+    }
+    const Vt = ndarray(VtData, [r, n]);
+    return { U, S, Vt };
+  }
+
+  async function handleUserUpload(file) {
+    setPageNum(2);
+
+    const img = await loadImageToMatrix(file);
+    const { gray, r, g, b, width, height, isColor } = extractChannels(img);
+
+    let loadedData = { isColor };
+
+    if (isColor) {
+      const ch = [r, g, b];
+      for (let c = 0; c < 3; c++) {
+        const { U, S, Vt } = computeSVDFromChannel(ch[c], height, width);
+        const US = computeUS(U, S);
+
+        loadedData[`US${c + 1}`] = US;
+        loadedData[`S${c + 1}`] = S;
+        loadedData[`Vt${c + 1}`] = Vt;
+        loadedData[`checkpoints${c + 1}`] =
+          buildCheckpoints(US, Vt, S, height, width);
+      }
+    } else {
+      const { U, S, Vt } = computeSVDFromChannel(gray, height, width);
+      const US = computeUS(U, S);
+
+      loadedData.US = US;
+      loadedData.S = S;
+      loadedData.Vt = Vt;
+      loadedData.checkpoints =
+        buildCheckpoints(US, Vt, S, height, width);
+    }
+
+    loadedData.originalPath = URL.createObjectURL(file);
+    setMatrices(loadedData);
+    setPageNum(3);
   }
 
   function computeUS(U, S) {
@@ -68,12 +174,7 @@ function App() {
   const handleUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const tempUrl = URL.createObjectURL(file);
-      const mockImageObject = {
-        folder: 'user-upload', // You'd need a way to process SVD on the fly for this
-        path: tempUrl
-      };
-      handleSelectTemplate(mockImageObject);
+      handleUserUpload(file)
     }
   };
 
@@ -158,7 +259,7 @@ function App() {
 
   return (
     <>
-      {pageNum === 1 && <Menu onSelect={handleSelectTemplate} />}
+      {pageNum === 1 && <Menu onSelect={handleSelectTemplate} handleUpload={handleUpload}/>}
       {pageNum === 2 && <Loading />}
       {pageNum === 3 && <Visualization data={matrices} onBack={onBack}/>}
     </>
