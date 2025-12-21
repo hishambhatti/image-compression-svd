@@ -9,16 +9,14 @@ import { SVD } from "svd-js";
 function App() {
   const [pageNum, setPageNum] = useState(1);
   const [matrices, setMatrices] = useState(null);
+  const [loadingInfo, setLoadingInfo] = useState(null);
   const BLOCK = 25;
-  const MAX_WIDTH = 1920;
-  const MAX_HEIGHT = 1080;
-  const [downsampled, setDownsampled] = useState(false);
 
   function onBack() {
     setPageNum(1);
   }
 
-  const MAX_PIXELS = 1920 * 1080;
+  const MAX_PIXELS = 1080 * 1080;
 
   function loadImageToMatrix(file) {
     return new Promise((resolve) => {
@@ -155,12 +153,22 @@ function App() {
   }
 
   async function handleUserUpload(file) {
-    setPageNum(2);
+  setPageNum(2);
 
-    const img = await loadImageToMatrix(file);
+  const img = await loadImageToMatrix(file);
 
-    console.log("Downsampled:", img.wasDownsampled);
+  // 1. Update the state
+  setLoadingInfo({
+    wasDownsampled: img.wasDownsampled,
+    originalWidth: img.originalWidth,
+    originalHeight: img.originalHeight,
+    finalWidth: img.width,
+    finalHeight: img.height,
+  });
 
+  // 2. Use setTimeout to defer the heavy math.
+  // This allows the browser to paint the "Downsampling" message first.
+  setTimeout(() => {
     const {
       gray,
       r,
@@ -204,9 +212,13 @@ function App() {
     }
 
     loadedData.originalPath = URL.createObjectURL(file);
+
+    // 3. Clear and transition
+    setLoadingInfo(null);
     setMatrices(loadedData);
     setPageNum(3);
-  }
+  }, 100); // 100ms is usually enough to ensure the UI updates
+}
 
   function computeUS(U, S) {
     const m = U.shape[0];
@@ -348,7 +360,7 @@ function App() {
   return (
     <>
       {pageNum === 1 && <Menu onSelect={handleSelectTemplate} handleUpload={handleUpload}/>}
-      {pageNum === 2 && <Loading />}
+      {pageNum === 2 && <Loading info={loadingInfo} />}
       {pageNum === 3 && <Visualization data={matrices} onBack={onBack}/>}
     </>
   );
