@@ -13,7 +13,7 @@ export default function Visualization({ data, onBack }) {
   const [renderK, setRenderK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
-  const BLOCK = 20;
+  const BLOCK = 25;
 
   function addRank1InPlace(out, US, Vt, i, m, n) {
     const USdata = US.data;     // ndarray-backed Float32Array

@@ -9,26 +9,67 @@ import { SVD } from "svd-js";
 function App() {
   const [pageNum, setPageNum] = useState(1);
   const [matrices, setMatrices] = useState(null);
-  const BLOCK = 20;
+  const BLOCK = 25;
+  const MAX_WIDTH = 1920;
+  const MAX_HEIGHT = 1080;
+  const [downsampled, setDownsampled] = useState(false);
 
   function onBack() {
     setPageNum(1);
   }
 
+  const MAX_PIXELS = 1920 * 1080;
+
   function loadImageToMatrix(file) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.drawImage(img, 0, 0);
 
-        const { data } = ctx.getImageData(0, 0, img.width, img.height);
-        resolve({ data, width: img.width, height: img.height });
+      img.onload = () => {
+        const originalWidth = img.width;
+        const originalHeight = img.height;
+
+        let targetWidth = originalWidth;
+        let targetHeight = originalHeight;
+        let wasDownsampled = false;
+
+        const totalPixels = originalWidth * originalHeight;
+
+        if (totalPixels > MAX_PIXELS) {
+          const scale = Math.sqrt(MAX_PIXELS / totalPixels);
+          targetWidth = Math.floor(originalWidth * scale);
+          targetHeight = Math.floor(originalHeight * scale);
+          wasDownsampled = true;
+        }
+
+        console.log(
+          `Image: ${originalWidth}×${originalHeight} → ${targetWidth}×${targetHeight}`,
+          wasDownsampled ? "(downsampled)" : "(original)"
+        );
+
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+        const { data } = ctx.getImageData(0, 0, targetWidth, targetHeight);
+
+        resolve({
+          data,
+          width: targetWidth,
+          height: targetHeight,
+          originalWidth,
+          originalHeight,
+          wasDownsampled,
+        });
       };
+
       img.src = URL.createObjectURL(file);
     });
   }
@@ -55,7 +96,7 @@ function App() {
       if (R !== G || G !== B) isColor = true;
     }
 
-    console.log(isColor)
+    console.log("Color: " + isColor)
 
     return { gray, r, g, b, width, height, isColor };
   }
@@ -117,9 +158,27 @@ function App() {
     setPageNum(2);
 
     const img = await loadImageToMatrix(file);
-    const { gray, r, g, b, width, height, isColor } = extractChannels(img);
 
-    let loadedData = { isColor };
+    console.log("Downsampled:", img.wasDownsampled);
+
+    const {
+      gray,
+      r,
+      g,
+      b,
+      width,
+      height,
+      isColor
+    } = extractChannels(img);
+
+    let loadedData = {
+      isColor,
+      downsampled: img.wasDownsampled,
+      originalWidth: img.originalWidth,
+      originalHeight: img.originalHeight,
+      finalWidth: width,
+      finalHeight: height,
+    };
 
     if (isColor) {
       const ch = [r, g, b];
