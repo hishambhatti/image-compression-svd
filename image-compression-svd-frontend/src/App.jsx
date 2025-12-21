@@ -68,43 +68,45 @@ function App() {
 
     let transposed = false;
     if (m < n) {
-      // transpose to n x m
       const temp = new Array(n);
       for (let i = 0; i < n; i++) {
         temp[i] = new Array(m);
-        for (let j = 0; j < m; j++) {
-          temp[i][j] = matrix[j][i];
-        }
+        for (let j = 0; j < m; j++) temp[i][j] = matrix[j][i];
       }
       matrix = temp;
       transposed = true;
     }
 
     const { u, q, v } = SVD(matrix);
+
+    // SORTING STEP
+    // q = singular values, u = left vectors, v = right vectors
+    const sortedIndices = q.map((val, idx) => idx)
+                          .sort((a, b) => q[b] - q[a]); // descending
+
+    const qSorted = sortedIndices.map(i => q[i]);
+    const uSorted = u.map(row => sortedIndices.map(i => row[i]));
+    const vSorted = v.map(row => sortedIndices.map(i => row[i]));
+
     let U, S, Vt;
 
     if (!transposed) {
-      const r = q.length;
-      U = ndarray(new Float32Array(u.flat()), [m, r]);
-      S = ndarray(new Float32Array(q), [r]);
+      const r = qSorted.length;
+      U = ndarray(new Float32Array(uSorted.flat()), [m, r]);
+      S = ndarray(new Float32Array(qSorted), [r]);
       const VtData = new Float32Array(r * n);
-      for (let i = 0; i < r; i++) {
-        for (let j = 0; j < n; j++) {
-          VtData[i * n + j] = v[j][i];
-        }
-      }
+      for (let i = 0; i < r; i++)
+        for (let j = 0; j < n; j++)
+          VtData[i * n + j] = vSorted[j][i];
       Vt = ndarray(VtData, [r, n]);
     } else {
-      // transpose back
-      const r = q.length;
-      U = ndarray(new Float32Array(v.flat()), [m, r]);
-      S = ndarray(new Float32Array(q), [r]);
+      const r = qSorted.length;
+      U = ndarray(new Float32Array(vSorted.flat()), [m, r]);
+      S = ndarray(new Float32Array(qSorted), [r]);
       const VtData = new Float32Array(r * n);
-      for (let i = 0; i < r; i++) {
-        for (let j = 0; j < n; j++) {
-          VtData[i * n + j] = u[j][i];
-        }
-      }
+      for (let i = 0; i < r; i++)
+        for (let j = 0; j < n; j++)
+          VtData[i * n + j] = uSorted[j][i];
       Vt = ndarray(VtData, [r, n]);
     }
 
