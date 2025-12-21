@@ -61,26 +61,53 @@ function App() {
   }
 
   function computeSVDFromChannel(channel, m, n) {
-    // Build row-major 2D JS array
-    const matrix = new Array(m);
+    let matrix = new Array(m);
     for (let i = 0; i < m; i++) {
       matrix[i] = Array.from(channel.slice(i * n, (i + 1) * n));
     }
-    // svd-js API
-    const { u, q, v } = SVD(matrix); // q = singular values
-    const r = q.length;
-    // U: m × r
-    const U = ndarray(new Float32Array(u.flat()), [m, r]);
-    // S: r
-    const S = ndarray(new Float32Array(q), [r]);
-    // svd-js gives V (n × r), but you want Vᵀ (r × n)
-    const VtData = new Float32Array(r * n);
-    for (let i = 0; i < r; i++) {
-      for (let j = 0; j < n; j++) {
-        VtData[i * n + j] = v[j][i];
+
+    let transposed = false;
+    if (m < n) {
+      // transpose to n x m
+      const temp = new Array(n);
+      for (let i = 0; i < n; i++) {
+        temp[i] = new Array(m);
+        for (let j = 0; j < m; j++) {
+          temp[i][j] = matrix[j][i];
+        }
       }
+      matrix = temp;
+      transposed = true;
     }
-    const Vt = ndarray(VtData, [r, n]);
+
+    const { u, q, v } = SVD(matrix);
+    let U, S, Vt;
+
+    if (!transposed) {
+      const r = q.length;
+      U = ndarray(new Float32Array(u.flat()), [m, r]);
+      S = ndarray(new Float32Array(q), [r]);
+      const VtData = new Float32Array(r * n);
+      for (let i = 0; i < r; i++) {
+        for (let j = 0; j < n; j++) {
+          VtData[i * n + j] = v[j][i];
+        }
+      }
+      Vt = ndarray(VtData, [r, n]);
+    } else {
+      // transpose back
+      const r = q.length;
+      U = ndarray(new Float32Array(v.flat()), [m, r]);
+      S = ndarray(new Float32Array(q), [r]);
+      const VtData = new Float32Array(r * n);
+      for (let i = 0; i < r; i++) {
+        for (let j = 0; j < n; j++) {
+          VtData[i * n + j] = u[j][i];
+        }
+      }
+      Vt = ndarray(VtData, [r, n]);
+    }
+
     return { U, S, Vt };
   }
 
