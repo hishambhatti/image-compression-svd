@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as C from "../utils/utils";
 import circleImg from '../assets/circle.png';
 import ellipseImg from '../assets/ellipse.png';
 
 export default function Menu({ onSelect, handleUpload }) {
+
+  const [page, setPage] = useState(0);
+  const numPages = C.portfolioPages.length;
+
+  const prevPage = () =>
+    setPage((p) => (p === 0 ? numPages - 1 : p - 1));
+
+  const nextPage = () =>
+    setPage((p) => (p === numPages - 1 ? 0 : p + 1));
 
   return (
     <div className='min-h-screen bg-[#f4f3ef] flex flex-col items-center py-6 px-4'>
@@ -44,24 +53,61 @@ export default function Menu({ onSelect, handleUpload }) {
         <h2 className='text-xl font-medium text-gray-800 mb-6 text-center uppercase tracking-widest font-[Red_Hat_Display]'>
           Explore our Portfolio
         </h2>
-        <div className='grid grid-cols-2 md:grid-cols-4 gap-6'>
-          {C.portfolioImages.map((img, index) => (
-            <div
-              key={index}
-              className='group cursor-pointer flex flex-col items-center'
-              onClick={() => onSelect(img)} // Trigger the load
-            >
-              <div className='overflow-hidden rounded-lg shadow-sm group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2'>
-                <img
-                  src={img.path}
-                  alt={img.name}
-                  className='w-full h-48 object-cover'
-                />
+
+        <div className="relative">
+          {/* Left Arrow */}
+          <button
+            onClick={prevPage}
+            className="absolute -left-6 top-1/2 -translate-y-1/2 z-10
+                      bg-white rounded-full p-2 shadow-md hover:shadow-lg
+                      transition-all active:scale-95"
+            aria-label="Previous"
+          >
+            ←
+          </button>
+
+          {/* Grid */}
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-6'>
+            {C.portfolioPages[page].map((img, index) => (
+              <div
+                key={index}
+                className='group cursor-pointer flex flex-col items-center'
+                onClick={() => onSelect(img)}
+              >
+                <div className='overflow-hidden rounded-lg shadow-sm group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2'>
+                  <img
+                    src={img.path}
+                    alt={img.name}
+                    className='w-full h-48 object-cover'
+                  />
+                </div>
+                <span className='mt-0 text-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity'>
+                  Select {img.name}
+                </span>
               </div>
-              <span className='mt-0 text-sm text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity'>
-                Select {img.name}
-              </span>
-            </div>
+            ))}
+          </div>
+
+          {/* Right Arrow */}
+          <button
+            onClick={nextPage}
+            className="absolute -right-6 top-1/2 -translate-y-1/2 z-10
+                      bg-white rounded-full p-2 shadow-md hover:shadow-lg
+                      transition-all active:scale-95"
+            aria-label="Next"
+          >
+            →
+          </button>
+        </div>
+
+        {/* Page Indicator */}
+        <div className="flex justify-center mt-4 gap-2">
+          {C.portfolioPages.map((_, i) => (
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full transition-all
+                ${i === page ? "bg-gray-700" : "bg-gray-300"}`}
+            />
           ))}
         </div>
       </section>
