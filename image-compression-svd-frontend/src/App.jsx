@@ -4,19 +4,12 @@ import Menu from "./components/Menu";
 import Loading from "./components/Loading";
 import Visualization from "./components/Visualization";
 import ndarray from "ndarray";
-import { SVD } from "svd-js";
+import * as C from "./utils/utils";
 
 function App() {
   const [pageNum, setPageNum] = useState(1);
   const [matrices, setMatrices] = useState(null);
   const [loadingInfo, setLoadingInfo] = useState(null);
-  const BLOCK = 25;
-
-  function onBack() {
-    setPageNum(1);
-  }
-
-  const MAX_PIXELS = 1080 * 1080;
 
   function loadImageToMatrix(file) {
     return new Promise((resolve) => {
@@ -32,17 +25,12 @@ function App() {
 
         const totalPixels = originalWidth * originalHeight;
 
-        if (totalPixels > MAX_PIXELS) {
-          const scale = Math.sqrt(MAX_PIXELS / totalPixels);
+        if (totalPixels > C.MAX_PIXELS) {
+          const scale = Math.sqrt(C.MAX_PIXELS / totalPixels);
           targetWidth = Math.floor(originalWidth * scale);
           targetHeight = Math.floor(originalHeight * scale);
           wasDownsampled = true;
         }
-
-        console.log(
-          `Image: ${originalWidth}×${originalHeight} → ${targetWidth}×${targetHeight}`,
-          wasDownsampled ? "(downsampled)" : "(original)"
-        );
 
         const canvas = document.createElement("canvas");
         canvas.width = targetWidth;
@@ -100,6 +88,7 @@ function App() {
   }
 
   async function handleUserUpload(file) {
+    // Uses a web worker
     setPageNum(2);
     const lastDotIndex = file.name.lastIndexOf('.');
     const name = file.name.substring(0, lastDotIndex)
@@ -192,9 +181,9 @@ function App() {
   }
 
   function addRank1InPlace(out, US, Vt, i, m, n) {
-    const USdata = US.data;     // ndarray-backed Float32Array
-    const VtData = Vt.data;    // raw Float32Array
-    const r = US.shape[1];     // rank dimension
+    const USdata = US.data; // ndarray Float32Array
+    const VtData = Vt.data; // raw Float32Array
+    const r = US.shape[1]; // rank dimension
 
     for (let row = 0; row < m; row++) {
       const u = USdata[row * r + i];
@@ -208,6 +197,7 @@ function App() {
   }
 
   function buildCheckpoints(US, Vt, S, m, n) {
+    // Creates a cache of SVD generation for multiples of BLOCK
     const checkpoints = [];
     let current = new Float32Array(m * n);
 
@@ -216,7 +206,7 @@ function App() {
     for (let i = 0; i < S.data.length; i++) {
       addRank1InPlace(current, US, Vt, i, m, n);
 
-      if ((i + 1) % BLOCK === 0) {
+      if ((i + 1) % C.BLOCK === 0) {
         checkpoints.push(current.slice());
       }
     }
@@ -224,7 +214,6 @@ function App() {
     return checkpoints;
   }
 
-  // For the file input onChange:
   const handleUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -238,7 +227,6 @@ function App() {
     const folder = selectedImg.folder;
 
     // Use Vite's BASE_URL (which is "/image-compression-svd")
-    // We ensure there are no double slashes by cleaning it up
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     const baseUrl = `${base}/images/${folder}`;
 
@@ -246,7 +234,7 @@ function App() {
       let loadedData = {};
       let isColor = false;
 
-      // 1. Check for Color
+      // Check for Color
       try {
         await np.load(`${baseUrl}/U1.npy`);
         isColor = true;
@@ -268,18 +256,12 @@ function App() {
           loadedData[`Vt${c}`] = Vt;
           loadedData[`S${c}`] = S;
 
-          loadedData[`checkpoints${c}`] = buildCheckpoints(
-            US,
-            Vt,
-            S,
-            m,
-            n
-          );
+          loadedData[`checkpoints${c}`] = buildCheckpoints(US, Vt, S, m, n);
         }
 
         loadedData.isColor = true;
       } else {
-        // 2. Grayscale Fallback
+        // Grayscale Fallback
         const U = await np.load(`${baseUrl}/U.npy`);
         const S = await np.load(`${baseUrl}/S.npy`);
         const Vt = await np.load(`${baseUrl}/Vt.npy`);
@@ -292,13 +274,7 @@ function App() {
         loadedData.Vt = Vt;
         loadedData.S = S;
 
-        loadedData.checkpoints = buildCheckpoints(
-          US,
-          Vt,
-          S,
-          m,
-          n
-        );
+        loadedData.checkpoints = buildCheckpoints(US, Vt, S, m, n);
         loadedData.isColor = false;
       }
 
@@ -310,6 +286,10 @@ function App() {
       console.error("Critical Load Error:", err);
       setPageNum(1);
     }
+  }
+
+  function onBack() {
+    setPageNum(1);
   }
 
   return (

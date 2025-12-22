@@ -14,3 +14,22 @@ export const portfolioPages = [
     { name: 'Dallas', folder: 'dallas', path: `${base}/images/dallas/dallas_grayscale.png` },
   ],
 ];
+
+// Formatter to handle 0 and 100 specifically
+export const tooltipFormatter = (value, name, props) => {
+  const displayName = name === "renderVal" ? "Value" : "Cumulative Sum";
+
+  // Logic for specific values
+  const actualValue = name === "renderVal" ? props.payload.trueVal : value;
+
+  let displayValue;
+  if (actualValue === 0) displayValue = "0";
+  else if (actualValue === 100) displayValue = "100";
+  else displayValue = actualValue.toFixed(5);
+
+  return [displayValue, displayName];
+};
+
+export const BLOCK = 25;
+export const MAX_PIXELS = 1080 * 1080;
+export const FRAME_INTERVAL = 2; // 500 FPS

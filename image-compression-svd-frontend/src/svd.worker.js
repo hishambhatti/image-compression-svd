@@ -1,13 +1,12 @@
 import { SVD } from "svd-js";
 
-// We need to redefine these inside the worker because
-// workers don't have access to functions in App.js
 function computeSVDFromChannel(channel, m, n) {
   let matrix = new Array(m);
   for (let i = 0; i < m; i++) {
     matrix[i] = Array.from(channel.slice(i * n, (i + 1) * n));
   }
 
+  // We transpose to allow cases if m < n (svd-js disallows that)
   let transposed = false;
   if (m < n) {
     const temp = new Array(n);
@@ -19,6 +18,7 @@ function computeSVDFromChannel(channel, m, n) {
     transposed = true;
   }
 
+  // Sorts the singular values
   const { u, q, v } = SVD(matrix);
   const sortedIndices = q.map((val, idx) => idx).sort((a, b) => q[b] - q[a]);
 

@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import ndarray from 'ndarray';
-import gemm from 'ndarray-gemm';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, ReferenceDot
 } from 'recharts';
 import circleImg from '../assets/circle.png';
 import ellipseImg from '../assets/ellipse.png';
+import * as C from "../utils/utils";
 
 export default function Visualization({ data, onBack, handleUpload }) {
   const [k, setK] = useState(1);
   const [renderK, setRenderK] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const canvasRef = useRef(null);
-  const BLOCK = 25;
   const fileInputRef = useRef(null);
-  const [name, setName] = useState(null)
+  const lastFrameTime = useRef(0);
+
+  const S_vector = data.isColor ? data.S1.data : data.S.data;
+  const maxK = S_vector.length;
+  const rows = data.isColor ? data.US1.shape[0] : data.US.shape[0];
+  const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
+  const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
 
   const triggerUpload = () => {
     fileInputRef.current.click();
@@ -25,15 +29,14 @@ export default function Visualization({ data, onBack, handleUpload }) {
     const link = document.createElement("a");
     link.download = filename;
     link.href = canvas.toDataURL("image/png");
-    setName(filename)
     link.click();
   }
 
 
   function addRank1InPlace(out, US, Vt, i, m, n) {
-    const USdata = US.data;     // ndarray-backed Float32Array
-    const VtData = Vt.data;    // raw Float32Array
-    const r = US.shape[1];     // rank dimension
+    const USdata = US.data; // ndarray Float32Array
+    const VtData = Vt.data; // raw Float32Array
+    const r = US.shape[1]; // rank dimension
 
     for (let row = 0; row < m; row++) {
       const u = USdata[row * r + i];
@@ -46,22 +49,11 @@ export default function Visualization({ data, onBack, handleUpload }) {
     }
   }
 
-  const S_vector = data.isColor ? data.S1.data : data.S.data;
-  const maxK = S_vector.length;
-  const rows = data.isColor ? data.US1.shape[0] : data.US.shape[0];
-  const cols = data.isColor ? data.Vt1.shape[1] : data.Vt.shape[1];
-
-  // Calculate total sum once for the Energy Retained stat
-  const totalS_Sum = useMemo(() => Array.from(S_vector).reduce((a, b) => a + b, 0), [S_vector]);
-
-  const lastFrameTime = useRef(0);
-  const FRAME_INTERVAL = 2; // ms → ~500 FPS
-
   useEffect(() => {
     let rafId;
 
     const update = (timestamp) => {
-      if (timestamp - lastFrameTime.current >= FRAME_INTERVAL) {
+      if (timestamp - lastFrameTime.current >= C.FRAME_INTERVAL) {
         setRenderK(k);
         lastFrameTime.current = timestamp;
       }
@@ -89,21 +81,6 @@ export default function Visualization({ data, onBack, handleUpload }) {
 
   const currentPoint = chartData[Math.min(k - 1, chartData.length - 1)];
 
-  // Formatter to handle 0 and 100 specifically
-  const tooltipFormatter = (value, name, props) => {
-    const displayName = name === "renderVal" ? "Value" : "Cumulative Sum";
-
-    // Logic for specific values
-    const actualValue = name === "renderVal" ? props.payload.trueVal : value;
-
-    let displayValue;
-    if (actualValue === 0) displayValue = "0";
-    else if (actualValue === 100) displayValue = "100";
-    else displayValue = actualValue.toFixed(5);
-
-    return [displayValue, displayName];
-  };
-
   const stats = useMemo(() => {
     const m = rows;
     const n = cols;
@@ -112,7 +89,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
     // Parameters Uncompressed: Total pixels
     const paramsUncompressed = m * n * colorMult;
 
-    // Parameters Compressed: k*(m + n + 1) per channel
+    // Parameters Compressed: k*(m + n + 1) per channel (3 if RGB or 1 if BW)
     const paramsCompressed = k * (m + n + 1) * colorMult;
 
     // Compression Ratio: Compressed / Uncompressed
@@ -140,7 +117,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
 
     // PSNR Calculation: 10 * log10(Max^2 / MSE)
     // Since pixels are 0-1, Max is 1. We handle the edge case where MSE is 0.
-    const psnr = mse > 0.00001 ? 10 * Math.log10(1 / mse) : 100;
+    const psnr = mse > 0.00001 ? 10 * Math.log10(255 / mse) : 100;
 
     return {
       paramsUncompressed,
@@ -152,16 +129,6 @@ export default function Visualization({ data, onBack, handleUpload }) {
     };
   }, [k, rows, cols, data, S_vector]);
 
-  // const reconstructChannel = (US, Vt, k, m, n) => {
-  //   const result = ndarray(new Float32Array(m * n), [m, n]);
-
-  //   const US_k = US.hi(m, k);         // m × k
-  //   const Vt_k = ndarray(Vt.data, [Vt.shape[0], n]).hi(k, n); // k × n
-
-  //   gemm(result, US_k, Vt_k);
-  //   return result.data;
-  // };
-
   const renderApproximation = () => {
     if (!canvasRef.current) return;
 
@@ -170,15 +137,15 @@ export default function Visualization({ data, onBack, handleUpload }) {
     const imageData = ctx.createImageData(cols, rows);
     ctx.imageSmoothingEnabled = false;
 
-    const base = Math.floor(renderK / BLOCK);
-    const offset = renderK - base * BLOCK;
+    const base = Math.floor(renderK / C.BLOCK);
+    const offset = renderK - base * C.BLOCK;
 
     if (data.isColor) {
       const r = new Float32Array(data.checkpoints1[base]);
       const g = new Float32Array(data.checkpoints2[base]);
       const b = new Float32Array(data.checkpoints3[base]);
 
-      for (let i = base * BLOCK; i < base * BLOCK + offset; i++) {
+      for (let i = base * C.BLOCK; i < base * C.BLOCK + offset; i++) {
         addRank1InPlace(r, data.US1, data.Vt1, i, rows, cols);
         addRank1InPlace(g, data.US2, data.Vt2, i, rows, cols);
         addRank1InPlace(b, data.US3, data.Vt3, i, rows, cols);
@@ -193,7 +160,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
     } else {
       const gray = new Float32Array(data.checkpoints[base]);
 
-      for (let i = base * BLOCK; i < base * BLOCK + offset; i++) {
+      for (let i = base * C.BLOCK; i < base * C.BLOCK + offset; i++) {
         addRank1InPlace(gray, data.US, data.Vt, i, rows, cols);
       }
 
@@ -294,7 +261,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                   <XAxis dataKey="index" hide />
                   <YAxis scale="log" domain={['auto', 'auto']} hide />
-                  <Tooltip formatter={tooltipFormatter} />
+                  <Tooltip formatter={C.tooltipFormatter} />
                   <Line type="monotone" dataKey="renderVal" stroke="#0ea5e9" dot={false} strokeWidth={2} />
                   <ReferenceDot x={k} y={currentPoint.renderVal} r={5} fill="red" stroke="white" />
                 </LineChart>
@@ -308,7 +275,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                   <XAxis dataKey="index" hide />
                   <YAxis domain={[0, 100]} fontSize={10} />
-                  <Tooltip formatter={tooltipFormatter} />
+                  <Tooltip formatter={C.tooltipFormatter} />
                   <Area type="monotone" dataKey="cumulative" stroke="#10b981" fill="#ecfdf5" />
                   <ReferenceDot x={k} y={currentPoint.cumulative} r={5} fill="red" stroke="white" />
                 </AreaChart>
