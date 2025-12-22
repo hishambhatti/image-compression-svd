@@ -106,7 +106,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
     const paramsCompressed = k * (m + n + 1) * colorMult;
 
     // Compression Ratio: Compressed / Uncompressed
-    const compressionRatio = paramsCompressed / paramsUncompressed;
+    const compressionRatio = paramsUncompressed / paramsCompressed;
 
     // Space Saved (%)
     const spacedSaved = 100 * (paramsUncompressed - paramsCompressed) / paramsUncompressed
@@ -126,7 +126,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
       sumSquaredOmitted = s.reduce((acc, val) => acc + (val * val), 0);
     }
 
-    const mse = sumSquaredOmitted / (m * n * colorMult);
+    const mse = 255 * sumSquaredOmitted / (m * n * colorMult);
 
     // PSNR Calculation: 10 * log10(Max^2 / MSE)
     // Since pixels are 0-1, Max is 1. We handle the edge case where MSE is 0.
