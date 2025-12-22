@@ -20,6 +20,14 @@ export default function Visualization({ data, onBack, handleUpload }) {
     fileInputRef.current.click();
   };
 
+  function downloadCanvasImage(canvas, filename) {
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+
   function addRank1InPlace(out, US, Vt, i, m, n) {
     const USdata = US.data;     // ndarray-backed Float32Array
     const VtData = Vt.data;    // raw Float32Array
@@ -362,7 +370,12 @@ export default function Visualization({ data, onBack, handleUpload }) {
                 <span className="text-sm font-bold uppercase tracking-wider">Upload</span>
               </button>
 
-              <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700">
+              <button
+                onClick={() => {
+                  downloadCanvasImage(canvasRef.current, `image_${k}.png`);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700"
+              >
                 <i className="fa-solid fa-download"></i>
                 <span className="text-sm font-bold uppercase tracking-wider">Download</span>
               </button>
