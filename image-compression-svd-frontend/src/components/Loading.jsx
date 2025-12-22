@@ -21,14 +21,14 @@ export default function Loading({ info }) {
             <span className="font-medium text-gray-700">
               ({info.originalWidth} × {info.originalHeight})
             </span>{" "}
-            exceeds limit.
+            exceeds limit
           </p>
           <p>
             Downsampling to{" "}
             <span className="font-medium text-gray-700">
               {info.finalWidth} × {info.finalHeight}
             </span>{" "}
-            for faster computation.
+            for faster computation
           </p>
         </div>
       )}
