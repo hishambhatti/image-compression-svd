@@ -15,6 +15,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
   const canvasRef = useRef(null);
   const BLOCK = 25;
   const fileInputRef = useRef(null);
+  const [name, setName] = useState(null)
 
   const triggerUpload = () => {
     fileInputRef.current.click();
@@ -24,6 +25,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
     const link = document.createElement("a");
     link.download = filename;
     link.href = canvas.toDataURL("image/png");
+    setName(filename)
     link.click();
   }
 
@@ -372,7 +374,7 @@ export default function Visualization({ data, onBack, handleUpload }) {
 
               <button
                 onClick={() => {
-                  downloadCanvasImage(canvasRef.current, `image_${k}.png`);
+                  downloadCanvasImage(canvasRef.current, `${data.name}_${k}.png`);
                 }}
                 className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 py-3 px-6 rounded-xl shadow-sm hover:bg-gray-50 transition-colors text-slate-700"
               >

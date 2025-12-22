@@ -101,6 +101,8 @@ function App() {
 
   async function handleUserUpload(file) {
     setPageNum(2);
+    const lastDotIndex = file.name.lastIndexOf('.');
+    const name = file.name.substring(0, lastDotIndex)
     const img = await loadImageToMatrix(file);
 
     setLoadingInfo({
@@ -136,7 +138,8 @@ function App() {
         originalHeight: img.originalHeight,
         finalWidth: width,
         finalHeight: height,
-        originalPath: URL.createObjectURL(file)
+        originalPath: URL.createObjectURL(file),
+        name: name
       };
 
       // Reconstruct ndarrays and build checkpoints
@@ -300,6 +303,7 @@ function App() {
       }
 
       loadedData.originalPath = selectedImg.path;
+      loadedData.name = selectedImg.name.toLowerCase();
       setMatrices(loadedData);
       setPageNum(3);
     } catch (err) {
